@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  # Konfigurasi Server Database
+  postgres-db:
+    image: postgres:15-alpine
+    container_name: desa_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: admin_desa
+      POSTGRES_PASSWORD: password_rahasia
+      POSTGRES_DB: db_auth # Database default pertama
+    ports:
+      - "5433:5432"
+    volumes:
+      - desa_pgdata:/var/lib/postgresql/data
+      - ./db-init:/docker-entrypoint-initdb.d # Memanggil skrip pembuat database otomatis
+    networks:
+      - desa_network
+
+# Mengamankan data agar tidak hilang saat Docker dimatikan
+volumes:
+  desa_pgdata:
+
+networks:
+  desa_network:
+    driver: bridge
