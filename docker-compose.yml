@@ -1,7 +1,7 @@
 version: '3.8'
 
 services:
-  # Konfigurasi Server Database
+  # 1. Database PostgreSQL
   postgres-db:
     image: postgres:15-alpine
     container_name: desa_postgres
@@ -9,16 +9,79 @@ services:
     environment:
       POSTGRES_USER: admin_desa
       POSTGRES_PASSWORD: password_rahasia
-      POSTGRES_DB: db_auth # Database default pertama
+      POSTGRES_DB: db_auth
     ports:
       - "5433:5432"
     volumes:
       - desa_pgdata:/var/lib/postgresql/data
-      - ./db-init:/docker-entrypoint-initdb.d # Memanggil skrip pembuat database otomatis
+      - ./db-init:/docker-entrypoint-initdb.d
     networks:
       - desa_network
 
-# Mengamankan data agar tidak hilang saat Docker dimatikan
+  # 2. Auth Service (Port 8000)
+  auth-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: auth_service
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./auth-service:/app
+    command: php artisan serve --host=0.0.0.0 --port=8000
+    depends_on:
+      - postgres-db
+    networks:
+      - desa_network
+
+  # 3. Info Service (Port 8001)
+  info-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: info_service
+    ports:
+      - "8001:8001"
+    volumes:
+      - ./info-service:/app
+    command: php artisan serve --host=0.0.0.0 --port=8001
+    depends_on:
+      - postgres-db
+    networks:
+      - desa_network
+
+  # 4. Statistic Service (Port 8002)
+  statistic-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: statistic_service
+    ports:
+      - "8002:8002"
+    volumes:
+      - ./statistic-service:/app
+    command: php artisan serve --host=0.0.0.0 --port=8002
+    depends_on:
+      - postgres-db
+    networks:
+      - desa_network
+
+  # 5. Content Service (Port 8003)
+  content-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: content_service
+    ports:
+      - "8003:8003"
+    volumes:
+      - ./content-service:/app
+    command: php artisan serve --host=0.0.0.0 --port=8003
+    depends_on:
+      - postgres-db
+    networks:
+      - desa_network
+
 volumes:
   desa_pgdata:
 

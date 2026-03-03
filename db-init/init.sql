@@ -2,5 +2,5 @@
 -- Di bawah ini kita membuat database untuk service lainnya:
 
 CREATE DATABASE db_info;
+CREATE DATABASE db_statistic;
 CREATE DATABASE db_content;
-CREATE DATABASE db_analytic;
