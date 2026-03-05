@@ -16,23 +16,23 @@ class BeritaController extends Controller
     }
 
     // 2. Menyimpan berita baru
+    // 2. Menyimpan berita baru
     public function store(Request $request)
     {
         $request->validate([
             'judul' => 'required|string|max:255',
-            'kategori' => 'required|in:Berita,Pengumuman',
             'konten' => 'required',
+            // kategori dihapus dari sini
         ]);
 
-        // Otomatis membuat slug dari judul (contoh: "Rapat Desa" -> "rapat-desa")
         $data = $request->all();
-        $data['slug'] = Str::slug($request->judul) . '-' . time(); // Tambah time() agar selalu unik
+        $data['slug'] = Str::slug($request->judul) . '-' . time(); 
 
         $berita = Berita::create($data);
 
         return response()->json([
             'status' => 'success',
-            'message' => $request->kategori . ' berhasil diterbitkan!',
+            'message' => 'Berita berhasil diterbitkan!', // Pesan disesuaikan
             'data' => $berita
         ], 201);
     }
