@@ -81,6 +81,22 @@ services:
       - postgres-db
     networks:
       - desa_network
+  
+  # 6. API Gateway (Meja Resepsionis - Port 9000)
+  api-gateway:
+    image: nginx:alpine
+    container_name: desa_api_gateway
+    ports:
+      - "9000:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - auth-service
+      - info-service
+      - statistic-service
+      - content-service
+    networks:
+      - desa_network
 
 volumes:
   desa_pgdata:
