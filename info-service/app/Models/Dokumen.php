@@ -8,7 +8,14 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 
 class Dokumen extends Model
 {
-    use HasFactory, HasUuids; 
+    use HasFactory, HasUuids;
 
-    protected $guarded = [];
+    // Menggunakan Fillable agar lebih aman dan seragam dengan model lain
+    protected $fillable = [
+        'nama_ppid',
+        'jenis_ppid',
+        'deskripsi_ppid',
+        'file',
+        // 'tanggal_upload' tidak perlu dimasukkan karena sudah otomatis dari database (useCurrent)
+    ];
 }

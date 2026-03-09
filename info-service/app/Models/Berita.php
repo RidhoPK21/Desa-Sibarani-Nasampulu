@@ -2,14 +2,20 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Concerns\HasUuids; // Wajib untuk UUID
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Concerns\HasUuids; // <-- Tambahkan ini
 
 class Berita extends Model
 {
-    use HasFactory, HasUuids; // <-- Tambahkan HasUuids di sini
+    use HasFactory, HasUuids; // Aktifkan UUID di sini
 
-    // Mengizinkan semua kolom diisi secara massal
-    protected $guarded = []; 
+    // Kolom apa saja yang boleh diisi (Mass Assignment)
+    protected $fillable = [
+        'judul',
+        'slug',
+        'konten',
+        'gambar_url',
+        'is_published',
+    ];
 }

@@ -84,6 +84,10 @@ return new class extends Migration
         $table->decimal('silpa_tahun_sebelumnya', 15, 2)->default(0);
         $table->decimal('penyertaan_modal_desa', 15, 2)->default(0);
 
+        $table->integer('versi')->default(1); // Mulai dari versi 1
+        $table->boolean('is_aktif')->default(true); // Penanda versi mana yang sedang tayang
+        $table->text('alasan_perubahan')->nullable(); // Alasan mengapa diubah
+
         $table->timestamps(); // <-- Ini otomatis membuat created_at dan updated_at
     });
 }

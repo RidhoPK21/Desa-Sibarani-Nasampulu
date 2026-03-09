@@ -8,18 +8,16 @@ use Illuminate\Support\Facades\Hash;
 
 class AuthController extends Controller
 {
+    // 1. LOGIN: Mencetak Token
     public function login(Request $request)
     {
-        // 1. Validasi input dari Frontend
         $request->validate([
             'username' => 'required|string',
             'password' => 'required|string'
         ]);
 
-        // 2. Cari admin berdasarkan username
         $user = User::where('username', $request->username)->first();
 
-        // 3. Cek apakah user ada dan password cocok
         if (!$user || !Hash::check($request->password, $user->password)) {
             return response()->json([
                 'status' => 'error',
@@ -27,10 +25,9 @@ class AuthController extends Controller
             ], 401);
         }
 
-        // 4. Buatkan Token Akses (Sanctum)
+        // Buat Token
         $token = $user->createToken('token_desa')->plainTextToken;
 
-        // 5. Kembalikan respons sukses beserta tokennya
         return response()->json([
             'status' => 'success',
             'message' => 'Login berhasil!',
@@ -40,6 +37,28 @@ class AuthController extends Controller
                 'username' => $user->username,
             ],
             'token' => $token
+        ], 200);
+    }
+
+    // 2. CEK PROFIL: Mengambil data Admin yang sedang login
+    public function me(Request $request)
+    {
+        // Mengambil user berdasarkan Token yang dikirim di Header
+        return response()->json([
+            'status' => 'success',
+            'data' => $request->user()
+        ], 200);
+    }
+
+    // 3. LOGOUT: Menghancurkan Token
+    public function logout(Request $request)
+    {
+        // Hapus token yang sedang digunakan ini dari database
+        $request->user()->currentAccessToken()->delete();
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Logout berhasil, Token telah dihancurkan!'
         ], 200);
     }
 }

@@ -6,24 +6,19 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
-        Schema::create('dusun_perkawaninans', function (Blueprint $table) {
-        $table->id();
-        $table->string('dusun_id', 5);
-        $table->string('status_perkawinan', 50);
-        $table->integer('jumlah_jiwa')->default(0);
-        $table->timestamps();
-        $table->foreign('dusun_id')->references('id')->on('dusuns')->onDelete('cascade');
-    });
+        // TYPO DIPERBAIKI: dusun_perkawinans
+        Schema::create('dusun_perkawinans', function (Blueprint $table) {
+            $table->id();
+            $table->string('dusun_id', 5);
+            $table->string('status_perkawinan', 50);
+            $table->integer('jumlah_jiwa')->default(0);
+            $table->timestamps();
+            $table->foreign('dusun_id')->references('id')->on('dusuns')->onDelete('cascade');
+        });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::dropIfExists('dusun_perkawinans');
