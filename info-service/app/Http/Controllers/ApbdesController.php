@@ -10,9 +10,9 @@ class ApbdesController extends Controller
     // 1. READ: Menampilkan data APBDes yang SEDANG AKTIF SAJA
     public function index()
     {
-        // Hanya ambil yang is_aktif = true (versi terbaru)
-        $data = Apbdes::where('is_aktif', true)
-                      ->orderBy('tahun', 'desc')
+        // Hapus filter 'is_aktif', lalu urutkan berdasarkan tahun dan versi terbesar
+        $data = Apbdes::orderBy('tahun', 'desc')
+                      ->orderBy('versi', 'desc')
                       ->get(); 
 
         return response()->json([
@@ -45,12 +45,25 @@ class ApbdesController extends Controller
     }
 
     // 4. CREATE: Menyimpan data APBDes AWAL (Versi 1)
+    // 4. CREATE: Menyimpan data APBDes AWAL (Versi 1)
     public function store(Request $request)
     {
         $request->validate([
             'nama_desa' => 'required|string|max:100',
             'tahun' => 'required|integer',
         ]);
+
+        // =======================================================
+        // 🔥 FITUR BARU: CEK DUPLIKASI TAHUN
+        // =======================================================
+        $cekTahun = Apbdes::where('tahun', $request->tahun)->first();
+        if ($cekTahun) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Data APBDes untuk tahun ' . $request->tahun . ' sudah ada! Silakan gunakan tombol "Ubah & Buat Versi Baru" (ikon pesan) pada tabel.'
+            ], 400); // Tolak permintaan (Bad Request)
+        }
+        // =======================================================
 
         $data = $request->all();
         $data['versi'] = 1; // Paksa jadi versi 1

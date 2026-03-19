@@ -44,7 +44,7 @@ class KegiatanController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'jenis_kegiatan' => 'required|in:Rapat,Gotong Royong,Sosialisasi,Perayaan,Lainnya',
+            'jenis_kegiatan' => 'required|in:kegiatan kerja,program kerja,bantuan sosial',
             'judul_kegiatan' => 'required|string|max:255',
             'deskripsi_kegiatan' => 'nullable|string',
             // Validasi file: Harus berupa gambar, maksimal 5MB
@@ -82,7 +82,7 @@ class KegiatanController extends Controller
         }
 
         $request->validate([
-            'jenis_kegiatan' => 'sometimes|in:Rapat,Gotong Royong,Sosialisasi,Perayaan,Lainnya',
+            'jenis_kegiatan' => 'required|in:kegiatan kerja,program kerja,bantuan sosial',
             'judul_kegiatan' => 'sometimes|string|max:255',
             'deskripsi_kegiatan' => 'nullable|string',
             'gambar' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:5120',

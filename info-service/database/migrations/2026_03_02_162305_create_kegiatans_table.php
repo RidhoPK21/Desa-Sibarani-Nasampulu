@@ -15,8 +15,7 @@ return new class extends Migration
         $table->uuid('id')->primary(); // Pengganti id_kegiatan
         
         // Enum bisa Anda sesuaikan isinya sesuai kebutuhan desa
-        $table->enum('jenis_kegiatan', ['Rapat', 'Gotong Royong', 'Sosialisasi', 'Perayaan', 'Lainnya']); 
-        
+        $table->enum('jenis_kegiatan', ['kegiatan kerja', 'program kerja', 'bantuan sosial']);        
         $table->string('judul_kegiatan', 255);
         $table->text('deskripsi_kegiatan')->nullable();
         $table->string('gambar', 255)->nullable(); // URL/Path gambar poster kegiatan

@@ -67,6 +67,7 @@ Route::delete('/kegiatan/{id}', [KegiatanController::class, 'destroy']);
 Route::post('/apbdes', [ApbdesController::class, 'store']);
 Route::put('/apbdes/{id}', [ApbdesController::class, 'update']);
 Route::delete('/apbdes/{id}', [ApbdesController::class, 'destroy']);
+Route::get('/apbdes/riwayat/{tahun}', [ApbdesController::class, 'riwayat']); // Fitur riwayat
 
 // --- Profil Desa (Kata Sambutan) ---
 Route::post('/profil/kata-sambutan', [ProfilDesaController::class, 'storeKataSambutan']);

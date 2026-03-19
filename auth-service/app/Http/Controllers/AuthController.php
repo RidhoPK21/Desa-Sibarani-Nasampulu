@@ -11,17 +11,23 @@ class AuthController extends Controller
     // 1. LOGIN: Mencetak Token
     public function login(Request $request)
     {
+        // 🔥 PERUBAHAN 1: Tambahkan validasi email
         $request->validate([
             'username' => 'required|string',
+            'email' => 'required|email', 
             'password' => 'required|string'
         ]);
 
-        $user = User::where('username', $request->username)->first();
+        // 🔥 PERUBAHAN 2: Cari user yang Username DAN Email-nya cocok
+        $user = User::where('username', $request->username)
+                    ->where('email', $request->email)
+                    ->first();
 
+        // 🔥 PERUBAHAN 3: Sesuaikan pesan error
         if (!$user || !Hash::check($request->password, $user->password)) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Username atau password salah!'
+                'message' => 'Username, Email, atau Password salah!'
             ], 401);
         }
 
@@ -35,6 +41,7 @@ class AuthController extends Controller
                 'id' => $user->id,
                 'name' => $user->name,
                 'username' => $user->username,
+                'email' => $user->email, // (Opsional) kembalikan email juga
             ],
             'token' => $token
         ], 200);
