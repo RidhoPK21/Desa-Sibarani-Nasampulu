@@ -5,33 +5,37 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Auth;
 
 class AuthController extends Controller
 {
-    // 1. LOGIN: Mencetak Token
     public function login(Request $request)
     {
-        // 🔥 PERUBAHAN 1: Tambahkan validasi email
+        // 1. Validasi Input
         $request->validate([
-            'username' => 'required|string',
-            'email' => 'required|email', 
+            'username' => 'nullable|string',
+            'email'    => 'nullable|email',
             'password' => 'required|string'
         ]);
 
-        // 🔥 PERUBAHAN 2: Cari user yang Username DAN Email-nya cocok
-        $user = User::where('username', $request->username)
-                    ->where('email', $request->email)
+        // 2. Cari User (Cek username jika ada, jika tidak cek email)
+        $user = User::when($request->username, function ($query, $username) {
+                        return $query->where('username', $username);
+                    })
+                    ->when($request->email, function ($query, $email) {
+                        return $query->orWhere('email', $email);
+                    })
                     ->first();
 
-        // 🔥 PERUBAHAN 3: Sesuaikan pesan error
+        // 3. Verifikasi Password dan keberadaan User
         if (!$user || !Hash::check($request->password, $user->password)) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Username, Email, atau Password salah!'
+                'message' => 'Kredensial yang Anda masukkan salah. Silakan coba lagi.'
             ], 401);
         }
 
-        // Buat Token
+        // 4. Buat Token (Sanctum)
         $token = $user->createToken('token_desa')->plainTextToken;
 
         return response()->json([
@@ -41,31 +45,26 @@ class AuthController extends Controller
                 'id' => $user->id,
                 'name' => $user->name,
                 'username' => $user->username,
-                'email' => $user->email, // (Opsional) kembalikan email juga
+                'email' => $user->email,
             ],
             'token' => $token
         ], 200);
     }
 
-    // 2. CEK PROFIL: Mengambil data Admin yang sedang login
     public function me(Request $request)
     {
-        // Mengambil user berdasarkan Token yang dikirim di Header
         return response()->json([
             'status' => 'success',
             'data' => $request->user()
         ], 200);
     }
 
-    // 3. LOGOUT: Menghancurkan Token
     public function logout(Request $request)
     {
-        // Hapus token yang sedang digunakan ini dari database
         $request->user()->currentAccessToken()->delete();
-
         return response()->json([
             'status' => 'success',
-            'message' => 'Logout berhasil, Token telah dihancurkan!'
+            'message' => 'Logout berhasil!'
         ], 200);
     }
 }

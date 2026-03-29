@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # 1. Database PostgreSQL
   postgres-db:
@@ -23,11 +21,14 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+
     container_name: auth_service
     ports:
       - "8000:8000"
     volumes:
       - ./auth-service:/app
+      - ./docker-entrypoint.sh:/usr/local/bin/docker-entrypoint.sh
+    entrypoint: ["/usr/local/bin/docker-entrypoint.sh"]
     command: php artisan serve --host=0.0.0.0 --port=8000
     depends_on:
       - postgres-db
@@ -44,6 +45,8 @@ services:
       - "8001:8001"
     volumes:
       - ./info-service:/app
+      - ./docker-entrypoint.sh:/usr/local/bin/docker-entrypoint.sh
+    entrypoint: ["/usr/local/bin/docker-entrypoint.sh"]
     command: php artisan serve --host=0.0.0.0 --port=8001
     depends_on:
       - postgres-db
@@ -60,6 +63,8 @@ services:
       - "8002:8002"
     volumes:
       - ./statistic-service:/app
+      - ./docker-entrypoint.sh:/usr/local/bin/docker-entrypoint.sh
+    entrypoint: ["/usr/local/bin/docker-entrypoint.sh"]
     command: php artisan serve --host=0.0.0.0 --port=8002
     depends_on:
       - postgres-db
@@ -76,6 +81,8 @@ services:
       - "8003:8003"
     volumes:
       - ./content-service:/app
+      - ./docker-entrypoint.sh:/usr/local/bin/docker-entrypoint.sh
+    entrypoint: ["/usr/local/bin/docker-entrypoint.sh"]
     command: php artisan serve --host=0.0.0.0 --port=8003
     depends_on:
       - postgres-db
