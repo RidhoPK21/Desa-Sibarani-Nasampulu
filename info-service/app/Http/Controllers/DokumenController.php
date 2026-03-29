@@ -46,7 +46,7 @@ class DokumenController extends Controller
         $request->validate([
             'nama_ppid' => 'required|string|max:255',
             // Validasi ketat sesuai Enum di database
-            'jenis_ppid' => 'required|in:Regulasi,Laporan Keuangan,SK Kades,Lainnya',
+            'jenis_ppid' => 'required|in:Informasi Berkala,Informasi Serta Merta,Informasi Setiap Saat',
             'deskripsi_ppid' => 'nullable|string',
             // Validasi file: Harus berupa file dokumen, maksimal 5MB (5120 KB)
             'file' => 'required|file|mimes:pdf,doc,docx,xls,xlsx|max:5120' 
@@ -80,7 +80,7 @@ class DokumenController extends Controller
 
         $request->validate([
             'nama_ppid' => 'sometimes|string|max:255',
-            'jenis_ppid' => 'sometimes|in:Regulasi,Laporan Keuangan,SK Kades,Lainnya',
+            'jenis_ppid' => 'required|in:Informasi Berkala,Informasi Serta Merta,Informasi Setiap Saat',
             'deskripsi_ppid' => 'nullable|string',
             'file' => 'nullable|file|mimes:pdf,doc,docx,xls,xlsx|max:5120'
         ]);

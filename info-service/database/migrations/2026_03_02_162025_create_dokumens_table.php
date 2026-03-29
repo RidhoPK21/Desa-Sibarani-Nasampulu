@@ -14,8 +14,7 @@ return new class extends Migration
     Schema::create('dokumens', function (Blueprint $table) {
         $table->uuid('id')->primary(); // Pengganti id_ppid
         $table->string('nama_ppid', 255);
-        $table->enum('jenis_ppid', ['Regulasi', 'Laporan Keuangan', 'SK Kades', 'Lainnya']); // Sesuaikan enum jika ada opsi khusus
-        $table->text('deskripsi_ppid')->nullable();
+        $table->enum('jenis_ppid', ['Informasi Berkala', 'Informasi Serta Merta', 'Informasi Setiap Saat']);        $table->text('deskripsi_ppid')->nullable();
         $table->timestamp('tanggal_upload')->useCurrent();
         $table->string('file', 255); // Untuk menyimpan path file/PDF
         $table->timestamps();
