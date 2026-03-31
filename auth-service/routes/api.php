@@ -4,7 +4,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
 
 // 🌍 Rute Terbuka (Siapa saja bisa mencoba login)
-Route::post('/login', [AuthController::class, 'login']);
+Route::post('/portal-pemdes', [AuthController::class, 'login']);
 
 // 🔐 Rute Tertutup (HANYA BISA DIAKSES JIKA BAWA TOKEN)
 Route::middleware('auth:sanctum')->group(function () {
