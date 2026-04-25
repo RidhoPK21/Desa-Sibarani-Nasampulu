@@ -14,10 +14,10 @@ class BeritaController extends Controller
     {
         $berita = Berita::orderBy('created_at', 'desc')->get();
         
-        // Memodifikasi path menjadi URL lengkap agar gambar bisa langsung tampil di React
+        // Ubah path menjadi endpoint download file via web route /storage/{path}
         $berita->transform(function ($item) {
             if ($item->gambar_url) {
-                $item->gambar_url = url('storage/' . $item->gambar_url);
+                $item->gambar_url = url('/storage/' . $item->gambar_url);
             }
             return $item;
         });
@@ -35,7 +35,7 @@ class BeritaController extends Controller
         }
 
         if ($berita->gambar_url) {
-            $berita->gambar_url = url('storage/' . $berita->gambar_url);
+            $berita->gambar_url = url('/storage/' . $berita->gambar_url);
         }
 
         return response()->json(['status' => 'success', 'data' => $berita], 200);

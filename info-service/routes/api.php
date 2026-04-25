@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Storage;
 use App\Http\Controllers\ApbdesController;
 use App\Http\Controllers\BeritaController;
 use App\Http\Controllers\DokumenController;
@@ -38,6 +39,28 @@ Route::get('/profil/visi-misi/{id}', [ProfilDesaController::class, 'showVisiMisi
 
 Route::get('/profil/perangkat-desa', [ProfilDesaController::class, 'indexPerangkatDesa']);
 Route::get('/profil/perangkat-desa/{id}', [ProfilDesaController::class, 'showPerangkatDesa']);
+
+// 🔥 Endpoint untuk Download File dari Storage (Gambar Berita, Dokumen, dll)
+Route::get('/file/{path}', function ($path) {
+    $fullPath = 'public/' . $path;
+    
+    // Cegah directory traversal attack
+    $realPath = realpath(storage_path($fullPath));
+    $basePath = realpath(storage_path('public'));
+    
+    if (!$realPath || strpos($realPath, $basePath) !== 0) {
+        abort(403, 'Unauthorized');
+    }
+    
+    if (!Storage::exists($fullPath)) {
+        abort(404, 'File not found');
+    }
+    
+    $filePath = storage_path($fullPath);
+    $mimeType = mime_content_type($filePath) ?: 'application/octet-stream';
+    
+    return response()->file($filePath, ['Content-Type' => $mimeType]);
+})->where('path', '.*');
 
 
 // ==========================================
