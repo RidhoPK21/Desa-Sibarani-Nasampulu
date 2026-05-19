@@ -2,8 +2,10 @@
 
 namespace Tests\Feature;
 
+use App\Models\Dokumen;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
@@ -11,14 +13,31 @@ class InfoControllersTest extends TestCase
 {
     use RefreshDatabase;
 
+    // ==========================================
+    // --- BERITA TESTS ---
+    // ==========================================
+
+    public function test_it_validates_berita_update_not_found()
+    {
+        $this->putJson('/api/berita/9999', [
+            'judul' => 'Test'
+        ])->assertStatus(404)->assertJsonPath('status', 'error');
+    }
+
+    public function test_it_validates_berita_delete_not_found()
+    {
+        $this->deleteJson('/api/berita/9999')
+             ->assertStatus(404)->assertJsonPath('status', 'error');
+    }
+
     public function test_it_can_crud_berita()
     {
         Storage::fake('public');
 
         $create = $this->post('/api/berita', [
-            'judul' => 'Berita Test',
-            'konten' => 'Isi berita testing',
-            'gambar_url' => UploadedFile::fake()->image('berita.jpg'),
+            'judul'        => 'Berita Test',
+            'konten'       => 'Isi berita testing',
+            'gambar_url'   => UploadedFile::fake()->image('berita.jpg'),
             'is_published' => true,
         ]);
 
@@ -28,16 +47,14 @@ class InfoControllersTest extends TestCase
         $this->getJson('/api/berita')->assertStatus(200)->assertJsonPath('data.0.id', $id);
         $this->getJson("/api/berita/{$id}")->assertStatus(200)->assertJsonPath('data.judul', 'Berita Test');
 
-        $update = $this->putJson("/api/berita/{$id}", [
-            'judul' => 'Berita Updated',
-            'konten' => 'Konten updated',
+        $this->putJson("/api/berita/{$id}", [
+            'judul'        => 'Berita Updated',
+            'konten'       => 'Konten updated',
             'is_published' => false,
-        ]);
+        ])->assertStatus(200)->assertJsonPath('data.judul', 'Berita Updated');
 
-        $update->assertStatus(200)->assertJsonPath('data.judul', 'Berita Updated');
-
-        $delete = $this->deleteJson("/api/berita/{$id}");
-        $delete->assertStatus(200)->assertJsonPath('status', 'success');
+        $this->deleteJson("/api/berita/{$id}")
+             ->assertStatus(200)->assertJsonPath('status', 'success');
         $this->getJson("/api/berita/{$id}")->assertStatus(404);
     }
 
@@ -46,115 +63,279 @@ class InfoControllersTest extends TestCase
         Storage::fake('public');
 
         $create = $this->post('/api/berita', [
-            'judul' => 'Berita Image Test',
-            'konten' => 'Isi berita testing',
-            'gambar_url' => UploadedFile::fake()->image('berita.jpg'),
+            'judul'        => 'Berita Image Test',
+            'konten'       => 'Isi berita testing',
+            'gambar_url'   => UploadedFile::fake()->image('berita.jpg'),
             'is_published' => true,
         ]);
 
-        $id = $create->json('data.id');
+        $id         = $create->json('data.id');
         $firstImage = basename($create->json('data.gambar_url'));
         $this->assertTrue(Storage::disk('public')->exists('berita_images/' . $firstImage));
 
         $update = $this->post("/api/berita/{$id}", [
-            '_method' => 'PUT',
-            'gambar_url' => UploadedFile::fake()->image('berita-new.jpg'),
+            '_method'      => 'PUT',
+            'gambar_url'   => UploadedFile::fake()->image('berita-new.jpg'),
             'is_published' => false,
         ]);
-
         $update->assertStatus(200)->assertJsonPath('data.is_published', false);
         $this->assertTrue(Storage::disk('public')->exists('berita_images/' . basename($update->json('data.gambar_url'))));
+    }
+
+    public function test_it_can_store_berita_without_image()
+    {
+        $create = $this->postJson('/api/berita', [
+            'judul'  => 'Berita Tanpa Gambar',
+            'konten' => 'Konten berita',
+        ]);
+        $create->assertStatus(201)->assertJsonPath('data.judul', 'Berita Tanpa Gambar');
+        $id = $create->json('data.id');
+
+        // Covers BeritaController::index() — item tanpa gambar di koleksi
+        $this->getJson('/api/berita')->assertStatus(200);
+
+        // Covers BeritaController::show() line 79 — $berita->gambar_url = null (branch false)
+        $this->getJson("/api/berita/{$id}")
+             ->assertStatus(200)
+             ->assertJsonPath('data.id', $id)
+             ->assertJsonPath('data.gambar_url', null);
+    }
+
+    public function test_it_can_update_berita_without_changing_slug()
+    {
+        $create = $this->postJson('/api/berita', [
+            'judul'  => 'Original Title',
+            'konten' => 'Original Content',
+        ]);
+        $id           = $create->json('data.id');
+        $originalSlug = $create->json('data.slug');
+
+        $this->putJson("/api/berita/{$id}", ['konten' => 'Updated Content'])
+             ->assertStatus(200)
+             ->assertJsonPath('data.slug', $originalSlug);
+    }
+
+    public function test_it_can_delete_berita_without_image()
+    {
+        // Covers BeritaController::destroy() line 121 — $berita->gambar_url = null (branch false)
+        $create = $this->postJson('/api/berita', [
+            'judul'  => 'Berita untuk Dihapus',
+            'konten' => 'Konten',
+        ]);
+        $create->assertStatus(201);
+        $this->assertNull($create->json('data.gambar_url'));
+
+        $id = $create->json('data.id');
+        $this->deleteJson("/api/berita/{$id}")
+             ->assertStatus(200)->assertJsonPath('status', 'success');
+        $this->getJson("/api/berita/{$id}")->assertStatus(404);
+    }
+
+    public function test_it_validates_berita_required_fields()
+    {
+        $this->postJson('/api/berita', ['judul' => 'Hanya Judul'])->assertStatus(422);
+    }
+
+    public function test_it_validates_berita_show_not_found()
+    {
+        $this->getJson('/api/berita/9999')
+             ->assertStatus(404)->assertJsonPath('status', 'error');
+    }
+
+    // ==========================================
+    // --- DOKUMEN TESTS ---
+    // ==========================================
+
+    public function test_it_validates_dokumen_update_not_found()
+    {
+        $this->putJson('/api/dokumen/9999', [
+            'nama_ppid' => 'Test',
+            'jenis_ppid' => 'Informasi Berkala'
+        ])->assertStatus(404)->assertJsonPath('status', 'error');
+    }
+
+    public function test_it_validates_dokumen_delete_not_found()
+    {
+        $this->deleteJson('/api/dokumen/9999')
+             ->assertStatus(404)->assertJsonPath('status', 'error');
     }
 
     public function test_it_can_crud_dokumen()
     {
         Storage::fake('public');
 
-        $file = UploadedFile::fake()->create('dokumen.pdf', 100, 'application/pdf');
         $create = $this->post('/api/dokumen', [
-            'nama_ppid' => 'Dokumen Test',
-            'jenis_ppid' => 'Informasi Berkala',
+            'nama_ppid'      => 'Dokumen Test',
+            'jenis_ppid'     => 'Informasi Berkala',
             'deskripsi_ppid' => 'Deskripsi dokumen',
-            'file' => $file,
+            'file'           => UploadedFile::fake()->create('dokumen.pdf', 100, 'application/pdf'),
         ]);
-
         $create->assertStatus(201)->assertJsonPath('data.nama_ppid', 'Dokumen Test');
         $id = $create->json('data.id');
 
         $this->getJson('/api/dokumen')->assertStatus(200)->assertJsonPath('data.0.id', $id);
         $this->getJson("/api/dokumen/{$id}")->assertStatus(200)->assertJsonPath('data.jenis_ppid', 'Informasi Berkala');
 
-        $update = $this->putJson("/api/dokumen/{$id}", [
-            'nama_ppid' => 'Dokumen Updated',
-            'jenis_ppid' => 'Informasi Serta Merta',
+        $this->putJson("/api/dokumen/{$id}", [
+            'nama_ppid'      => 'Dokumen Updated',
+            'jenis_ppid'     => 'Informasi Serta Merta',
             'deskripsi_ppid' => 'Deskripsi baru',
-        ]);
+        ])->assertStatus(200)->assertJsonPath('data.nama_ppid', 'Dokumen Updated');
 
-        $update->assertStatus(200)->assertJsonPath('data.nama_ppid', 'Dokumen Updated');
-
-        $delete = $this->deleteJson("/api/dokumen/{$id}");
-        $delete->assertStatus(200)->assertJsonPath('status', 'success');
+        $this->deleteJson("/api/dokumen/{$id}")
+             ->assertStatus(200)->assertJsonPath('status', 'success');
     }
 
     public function test_it_can_update_dokumen_with_new_file()
     {
         Storage::fake('public');
-        $file = UploadedFile::fake()->create('dokumen.pdf', 100, 'application/pdf');
 
         $create = $this->post('/api/dokumen', [
-            'nama_ppid' => 'Dokumen File Test',
-            'jenis_ppid' => 'Informasi Berkala',
+            'nama_ppid'      => 'Dokumen File Test',
+            'jenis_ppid'     => 'Informasi Berkala',
             'deskripsi_ppid' => 'Deskripsi file test',
-            'file' => $file,
+            'file'           => UploadedFile::fake()->create('dokumen.pdf', 100, 'application/pdf'),
         ]);
-
-        $id = $create->json('data.id');
+        $id      = $create->json('data.id');
         $oldFile = basename($create->json('data.file'));
         $this->assertTrue(Storage::disk('public')->exists('dokumen_ppid/' . $oldFile));
 
         $update = $this->post('/api/dokumen/' . $id, [
-            '_method' => 'PUT',
-            'nama_ppid' => 'Dokumen File Updated',
-            'jenis_ppid' => 'Informasi Serta Merta',
+            '_method'        => 'PUT',
+            'nama_ppid'      => 'Dokumen File Updated',
+            'jenis_ppid'     => 'Informasi Serta Merta',
             'deskripsi_ppid' => 'Deskripsi diperbarui',
-            'file' => UploadedFile::fake()->create('dokumen-new.pdf', 120, 'application/pdf'),
+            'file'           => UploadedFile::fake()->create('dokumen-new.pdf', 120, 'application/pdf'),
         ]);
-
         $update->assertStatus(200)->assertJsonPath('data.nama_ppid', 'Dokumen File Updated');
         $this->assertTrue(Storage::disk('public')->exists('dokumen_ppid/' . basename($update->json('data.file'))));
     }
 
+    public function test_it_can_update_dokumen_without_new_file()
+    {
+        Storage::fake('public');
+
+        $create = $this->post('/api/dokumen', [
+            'nama_ppid'      => 'Dokumen Update Test',
+            'jenis_ppid'     => 'Informasi Berkala',
+            'deskripsi_ppid' => 'Deskripsi awal',
+            'file'           => UploadedFile::fake()->create('dokumen.pdf', 100, 'application/pdf'),
+        ]);
+        $id = $create->json('data.id');
+
+        $this->putJson("/api/dokumen/{$id}", [
+            'nama_ppid'  => 'Dokumen Updated No File',
+            'jenis_ppid' => 'Informasi Serta Merta',
+        ])->assertStatus(200)->assertJsonPath('data.nama_ppid', 'Dokumen Updated No File');
+    }
+
+    public function test_it_can_show_dokumen_without_file()
+    {
+        Storage::fake('public');
+
+        // Buat dokumen normal dulu agar lolos NOT NULL constraint
+        $create = $this->post('/api/dokumen', [
+            'nama_ppid'      => 'Dokumen Tanpa File Show',
+            'jenis_ppid'     => 'Informasi Berkala',
+            'deskripsi_ppid' => 'Deskripsi',
+            'file'           => UploadedFile::fake()->create('dokumen.pdf', 100, 'application/pdf'),
+        ]);
+        $create->assertStatus(201);
+        $id = $create->json('data.id');
+
+        // Set file menjadi string kosong via DB langsung — string kosong = falsy di PHP
+        // sehingga `if ($dokumen->file)` = false → covers DokumenController::show() line 78
+        DB::table('dokumens')->where('id', $id)->update(['file' => '']);
+
+        $this->getJson("/api/dokumen/{$id}")
+             ->assertStatus(200)
+             ->assertJsonPath('data.id', $id)
+             ->assertJsonPath('data.nama_ppid', 'Dokumen Tanpa File Show');
+    }
+
+    public function test_it_can_delete_dokumen_without_file()
+    {
+        Storage::fake('public');
+
+        // Buat dokumen normal dulu agar lolos NOT NULL constraint
+        $create = $this->post('/api/dokumen', [
+            'nama_ppid'      => 'Dokumen Hapus Tanpa File',
+            'jenis_ppid'     => 'Informasi Serta Merta',
+            'deskripsi_ppid' => 'Test destroy',
+            'file'           => UploadedFile::fake()->create('dokumen.pdf', 100, 'application/pdf'),
+        ]);
+        $create->assertStatus(201);
+        $id = $create->json('data.id');
+
+        // Set file menjadi string kosong via DB langsung — string kosong = falsy di PHP
+        // sehingga `if ($dokumen->file)` = false → covers DokumenController::destroy() line 116
+        DB::table('dokumens')->where('id', $id)->update(['file' => '']);
+
+        $this->deleteJson("/api/dokumen/{$id}")
+             ->assertStatus(200)->assertJsonPath('status', 'success');
+        $this->getJson("/api/dokumen/{$id}")->assertStatus(404);
+    }
+
+    public function test_it_validates_dokumen_jenis_ppid()
+    {
+        $this->postJson('/api/dokumen', [
+            'nama_ppid'  => 'Test',
+            'jenis_ppid' => 'Invalid Type',
+        ])->assertStatus(422);
+    }
+
+    public function test_it_validates_dokumen_show_not_found()
+    {
+        $this->getJson('/api/dokumen/9999')
+             ->assertStatus(404)->assertJsonPath('status', 'error');
+    }
+
+    // ==========================================
+    // --- KEGIATAN TESTS ---
+    // ==========================================
+
+    public function test_it_validates_kegiatan_update_not_found()
+    {
+        $this->putJson('/api/kegiatan/9999', [
+            'judul_kegiatan' => 'Test',
+            'jenis_kegiatan' => 'program kerja'
+        ])->assertStatus(404)->assertJsonPath('status', 'error');
+    }
+
+    public function test_it_validates_kegiatan_delete_not_found()
+    {
+        $this->deleteJson('/api/kegiatan/9999')
+             ->assertStatus(404)->assertJsonPath('status', 'error');
+    }
+    
     public function test_it_can_crud_kegiatan()
     {
         Storage::fake('public');
 
         $create = $this->post('/api/kegiatan', [
-            'jenis_kegiatan' => 'program kerja',
-            'judul_kegiatan' => 'Program Test',
+            'jenis_kegiatan'     => 'program kerja',
+            'judul_kegiatan'     => 'Program Test',
             'deskripsi_kegiatan' => 'Deskripsi kegiatan test',
-            'gambar' => UploadedFile::fake()->image('kegiatan.jpg'),
-            'tanggal_pelaksana' => '2026-05-18',
-            'tanggal_berakhir' => '2026-05-18',
-            'status_kegiatan' => 'Akan Datang',
+            'gambar'             => UploadedFile::fake()->image('kegiatan.jpg'),
+            'tanggal_pelaksana'  => '2026-05-18',
+            'tanggal_berakhir'   => '2026-05-18',
+            'status_kegiatan'    => 'Akan Datang',
         ]);
-
         $create->assertStatus(201)->assertJsonPath('data.judul_kegiatan', 'Program Test');
         $id = $create->json('data.id');
 
         $this->getJson('/api/kegiatan')->assertStatus(200)->assertJsonPath('data.0.id', $id);
         $this->getJson("/api/kegiatan/{$id}")->assertStatus(200)->assertJsonPath('data.judul_kegiatan', 'Program Test');
 
-        $update = $this->putJson("/api/kegiatan/{$id}", [
-            'jenis_kegiatan' => 'program kerja',
-            'judul_kegiatan' => 'Program Updated',
+        $this->putJson("/api/kegiatan/{$id}", [
+            'jenis_kegiatan'    => 'program kerja',
+            'judul_kegiatan'    => 'Program Updated',
             'tanggal_pelaksana' => '2026-05-18',
-            'tanggal_berakhir' => '2026-05-18',
-        ]);
+            'tanggal_berakhir'  => '2026-05-18',
+        ])->assertStatus(200)->assertJsonPath('data.judul_kegiatan', 'Program Updated');
 
-        $update->assertStatus(200)->assertJsonPath('data.judul_kegiatan', 'Program Updated');
-
-        $delete = $this->deleteJson("/api/kegiatan/{$id}");
-        $delete->assertStatus(200)->assertJsonPath('status', 'success');
+        $this->deleteJson("/api/kegiatan/{$id}")
+             ->assertStatus(200)->assertJsonPath('status', 'success');
     }
 
     public function test_it_can_update_kegiatan_with_new_image()
@@ -162,75 +343,145 @@ class InfoControllersTest extends TestCase
         Storage::fake('public');
 
         $create = $this->post('/api/kegiatan', [
-            'jenis_kegiatan' => 'program kerja',
-            'judul_kegiatan' => 'Program Test',
+            'jenis_kegiatan'     => 'program kerja',
+            'judul_kegiatan'     => 'Program Test',
             'deskripsi_kegiatan' => 'Deskripsi kegiatan test',
-            'gambar' => UploadedFile::fake()->image('kegiatan.jpg'),
-            'tanggal_pelaksana' => '2026-05-18',
-            'tanggal_berakhir' => '2026-05-18',
-            'status_kegiatan' => 'Akan Datang',
+            'gambar'             => UploadedFile::fake()->image('kegiatan.jpg'),
+            'tanggal_pelaksana'  => '2026-05-18',
+            'tanggal_berakhir'   => '2026-05-18',
+            'status_kegiatan'    => 'Akan Datang',
         ]);
-
-        $id = $create->json('data.id');
+        $id       = $create->json('data.id');
         $oldImage = basename($create->json('data.gambar'));
         $this->assertTrue(Storage::disk('public')->exists('kegiatan_images/' . $oldImage));
 
         $update = $this->post('/api/kegiatan/' . $id, [
-            '_method' => 'PUT',
+            '_method'        => 'PUT',
             'jenis_kegiatan' => 'program kerja',
-            'gambar' => UploadedFile::fake()->image('kegiatan-new.jpg'),
+            'gambar'         => UploadedFile::fake()->image('kegiatan-new.jpg'),
         ]);
-
         $update->assertStatus(200)->assertJsonPath('data.id', $id);
         $this->assertTrue(Storage::disk('public')->exists('kegiatan_images/' . basename($update->json('data.gambar'))));
     }
+
+    public function test_it_can_store_kegiatan_without_image()
+    {
+        $create = $this->postJson('/api/kegiatan', [
+            'jenis_kegiatan'     => 'kegiatan kerja',
+            'judul_kegiatan'     => 'Kegiatan Tanpa Gambar',
+            'deskripsi_kegiatan' => 'Deskripsi',
+            'tanggal_pelaksana'  => '2026-05-18',
+            'tanggal_berakhir'   => '2026-05-20',
+        ]);
+        $create->assertStatus(201)->assertJsonPath('data.judul_kegiatan', 'Kegiatan Tanpa Gambar');
+        $id = $create->json('data.id');
+
+        // Covers KegiatanController::show() line 81 — $kegiatan->gambar = null (branch false)
+        $this->getJson("/api/kegiatan/{$id}")
+             ->assertStatus(200)
+             ->assertJsonPath('data.id', $id)
+             ->assertJsonPath('data.gambar', null);
+    }
+
+    public function test_it_can_delete_kegiatan_without_image()
+    {
+        // Covers KegiatanController::destroy() line 122 — $kegiatan->gambar = null (branch false)
+        $create = $this->postJson('/api/kegiatan', [
+            'jenis_kegiatan'    => 'program kerja',
+            'judul_kegiatan'    => 'Kegiatan untuk Dihapus',
+            'tanggal_pelaksana' => '2026-05-18',
+        ]);
+        $create->assertStatus(201);
+        $this->assertNull($create->json('data.gambar'));
+
+        $id = $create->json('data.id');
+        $this->deleteJson("/api/kegiatan/{$id}")
+             ->assertStatus(200)->assertJsonPath('status', 'success');
+        $this->getJson("/api/kegiatan/{$id}")->assertStatus(404);
+    }
+
+    public function test_it_validates_kegiatan_tanggal_berakhir()
+    {
+        $this->postJson('/api/kegiatan', [
+            'jenis_kegiatan'    => 'kegiatan kerja',
+            'judul_kegiatan'    => 'Kegiatan Test',
+            'tanggal_pelaksana' => '2026-05-20',
+            'tanggal_berakhir'  => '2026-05-18',
+        ])->assertStatus(422);
+    }
+
+    public function test_it_validates_kegiatan_show_not_found()
+    {
+        $this->getJson('/api/kegiatan/9999')
+             ->assertStatus(404)->assertJsonPath('status', 'error');
+    }
+
+    // ==========================================
+    // --- APBDES TESTS ---
+    // ==========================================
 
     public function test_it_can_crud_apbdes_versioning_and_history()
     {
         $create = $this->postJson('/api/apbdes', [
             'nama_desa' => 'Desa Test',
-            'tahun' => 2025,
+            'tahun'     => 2025,
         ]);
-
         $create->assertStatus(201)->assertJsonPath('data.tahun', 2025);
         $id = $create->json('data.id');
 
         $this->getJson('/api/apbdes')->assertStatus(200)->assertJsonPath('data.0.id', $id);
         $this->getJson("/api/apbdes/{$id}")->assertStatus(200)->assertJsonPath('data.nama_desa', 'Desa Test');
 
-        $update = $this->putJson("/api/apbdes/{$id}", [
+        $this->putJson("/api/apbdes/{$id}", [
             'alasan_perubahan' => 'Perubahan data',
-            'nama_desa' => 'Desa Test Update',
-        ]);
+            'nama_desa'        => 'Desa Test Update',
+        ])->assertStatus(200)
+          ->assertJsonPath('data.versi', 2)
+          ->assertJsonPath('data.nama_desa', 'Desa Test Update');
 
-        $update->assertStatus(200)->assertJsonPath('data.versi', 2)->assertJsonPath('data.nama_desa', 'Desa Test Update');
         $this->getJson('/api/apbdes/riwayat/2025')->assertStatus(200)->assertJsonCount(2, 'data');
 
-        $delete = $this->deleteJson("/api/apbdes/{$id}");
-        $delete->assertStatus(200)->assertJsonPath('status', 'success');
+        $this->deleteJson("/api/apbdes/{$id}")
+             ->assertStatus(200)->assertJsonPath('status', 'success');
     }
 
     public function test_it_rejects_duplicate_apbdes_year()
     {
-        $this->postJson('/api/apbdes', [
-            'nama_desa' => 'Desa Duplicate',
-            'tahun' => 2026,
-        ])->assertStatus(201);
+        $this->postJson('/api/apbdes', ['nama_desa' => 'Desa Duplicate', 'tahun' => 2026])
+             ->assertStatus(201);
 
-        $duplicate = $this->postJson('/api/apbdes', [
-            'nama_desa' => 'Desa Duplicate',
-            'tahun' => 2026,
-        ]);
-
-        $duplicate->assertStatus(400)
-                  ->assertJsonPath('status', 'error')
-                  ->assertJsonPath('message', 'Data APBDes untuk tahun 2026 sudah ada! Silakan gunakan tombol "Ubah & Buat Versi Baru" (ikon pesan) pada tabel.');
+        $this->postJson('/api/apbdes', ['nama_desa' => 'Desa Duplicate', 'tahun' => 2026])
+             ->assertStatus(400)
+             ->assertJsonPath('status', 'error')
+             ->assertJsonPath('message', 'Data APBDes untuk tahun 2026 sudah ada! Silakan gunakan tombol "Ubah & Buat Versi Baru" (ikon pesan) pada tabel.');
     }
+
+    public function test_it_validates_apbdes_show_not_found()
+    {
+        $this->getJson('/api/apbdes/9999')
+             ->assertStatus(404)->assertJsonPath('status', 'error');
+    }
+
+    public function test_it_validates_apbdes_update_not_found()
+    {
+        $this->putJson('/api/apbdes/9999', ['alasan_perubahan' => 'Test'])
+             ->assertStatus(404)->assertJsonPath('status', 'error');
+    }
+
+    public function test_it_validates_apbdes_delete_not_found()
+    {
+        $this->deleteJson('/api/apbdes/9999')
+             ->assertStatus(404)->assertJsonPath('status', 'error');
+    }
+
+    // ==========================================
+    // --- PROFIL DESA TESTS ---
+    // ==========================================
 
     public function test_it_can_crud_profil_desa_subresources()
     {
         // Kata Sambutan
-        $kata = $this->postJson('/api/profil/kata-sambutan', ['kata' => 'Sambutan test']);
+        $kata   = $this->postJson('/api/profil/kata-sambutan', ['kata' => 'Sambutan test']);
         $kata->assertStatus(201)->assertJsonPath('data.kata', 'Sambutan test');
         $kataId = $kata->json('data.id');
         $this->getJson('/api/profil/kata-sambutan')->assertStatus(200)->assertJsonPath('data.0.id', $kataId);
@@ -239,7 +490,7 @@ class InfoControllersTest extends TestCase
         $this->deleteJson("/api/profil/kata-sambutan/{$kataId}")->assertStatus(200);
 
         // Visi Misi
-        $visi = $this->postJson('/api/profil/visi-misi', ['visi' => 'Visi test', 'misi' => 'Misi test']);
+        $visi   = $this->postJson('/api/profil/visi-misi', ['visi' => 'Visi test', 'misi' => 'Misi test']);
         $visi->assertStatus(201)->assertJsonPath('data.visi', 'Visi test');
         $visiId = $visi->json('data.id');
         $this->getJson('/api/profil/visi-misi')->assertStatus(200)->assertJsonPath('data.0.id', $visiId);
@@ -249,10 +500,10 @@ class InfoControllersTest extends TestCase
 
         // Perangkat Desa
         Storage::fake('public');
-        $perangkat = $this->post('/api/profil/perangkat-desa', [
-            'nama' => 'Admin Test',
+        $perangkat   = $this->post('/api/profil/perangkat-desa', [
+            'nama'    => 'Admin Test',
             'jabatan' => 'Kepala Desa',
-            'foto' => UploadedFile::fake()->image('admin.jpg'),
+            'foto'    => UploadedFile::fake()->image('admin.jpg'),
         ]);
         $perangkat->assertStatus(201)->assertJsonPath('data.nama', 'Admin Test');
         $perangkatId = $perangkat->json('data.id');
@@ -267,21 +518,19 @@ class InfoControllersTest extends TestCase
         Storage::fake('public');
 
         $create = $this->post('/api/profil/perangkat-desa', [
-            'nama' => 'Operator Test',
+            'nama'    => 'Operator Test',
             'jabatan' => 'Staf',
-            'foto' => UploadedFile::fake()->image('operator.jpg'),
+            'foto'    => UploadedFile::fake()->image('operator.jpg'),
         ]);
-
-        $id = $create->json('data.id');
+        $id       = $create->json('data.id');
         $oldPhoto = basename($create->json('data.foto'));
         $this->assertTrue(Storage::disk('public')->exists('perangkat_desa_images/' . $oldPhoto));
 
         $update = $this->post('/api/profil/perangkat-desa/' . $id, [
             '_method' => 'PUT',
             'jabatan' => 'Staf Updated',
-            'foto' => UploadedFile::fake()->image('operator-new.jpg'),
+            'foto'    => UploadedFile::fake()->image('operator-new.jpg'),
         ]);
-
         $update->assertStatus(200)->assertJsonPath('data.jabatan', 'Staf Updated');
         $this->assertTrue(Storage::disk('public')->exists('perangkat_desa_images/' . basename($update->json('data.foto'))));
     }
